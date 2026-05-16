@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Sledovanie Hodín</title>
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hodiny">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABmJLR0QA/wD/AP+gvaeTAAAC5klEQVR4nO3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBuAABHgAAAABJRU5ErkJggg==">
+
+<!-- Android PWA Manifest -->
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Sledovanie+Hod%C3%ADn%22,%22short_name%22:%22Hodiny%22,%22display%22:%22standalone%22,%22background_color%22:%22%231a1a1a%22,%22theme_color%22:%22%23c9963a%22,%22start_url%22:%22.%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg+xmlns%3D'http%3A//www.w3.org/2000/svg'+viewBox%3D'0+0+512+512'%3E%3Crect+width%3D'512'+height%3D'512'+rx%3D'80'+fill%3D'%231a1a1a'/%3E%3Ccircle+cx%3D'256'+cy%3D'256'+r%3D'160'+fill%3D'none'+stroke%3D'%23c9963a'+stroke-width%3D'28'/%3E%3Cline+x1%3D'256'+y1%3D'256'+x2%3D'256'+y2%3D'140'+stroke%3D'%23c9963a'+stroke-width%3D'24'+stroke-linecap%3D'round'/%3E%3Cline+x1%3D'256'+y1%3D'256'+x2%3D'316'+y2%3D'296'+stroke%3D'%23c9963a'+stroke-width%3D'24'+stroke-linecap%3D'round'/%3E%3C/svg%3E%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22}]}">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="mobile-web-app-capable" content="yes">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#1a1a1a;color:#e8e0d0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+.screen{display:none;height:100vh;height:100dvh;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+
+/* Header */
+.header{background:#111;padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #333;flex-shrink:0;padding-top:max(16px,env(safe-area-inset-top))}
+.header-title{font-size:18px;font-weight:600;color:#e8e0d0;flex:1}
+.back-btn{width:36px;height:36px;border:none;background:none;color:#c9963a;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Scrollable content */
+.content{flex:1;overflow-y:auto;padding:20px;-webkit-overflow-scrolling:touch}
+.content.centered{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+
+/* Bottom nav */
+.bottom-nav{display:flex;background:#111;border-top:1px solid #333;flex-shrink:0;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 8px;cursor:pointer;border:none;background:none;color:#888;font-size:11px;gap:4px;transition:color .2s}
+.nav-item.active,.nav-item:active{color:#c9963a}
+.nav-item svg{width:24px;height:24px}
+
+/* Loading */
+.spinner{width:48px;height:48px;border:4px solid #333;border-top-color:#c9963a;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Employee list */
+.emp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.emp-card{background:#252525;border:2px solid #333;border-radius:16px;padding:20px 12px;text-align:center;cursor:pointer;transition:border-color .2s,transform .1s;-webkit-user-select:none;user-select:none}
+.emp-card:active{transform:scale(0.96);border-color:#c9963a}
+.emp-initials{width:52px;height:52px;background:#c9963a22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#c9963a;margin:0 auto 10px}
+.emp-name{font-size:13px;font-weight:500;color:#e8e0d0;line-height:1.3}
+
+/* Home screen */
+.user-badge{display:flex;align-items:center;gap:10px;background:#252525;border-radius:12px;padding:12px 16px;margin-bottom:20px}
+.user-badge-icon{width:36px;height:36px;background:#c9963a22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#c9963a;flex-shrink:0}
+.user-badge-name{font-size:15px;font-weight:500}
+.logout-btn{margin-left:auto;background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:4px 8px}
+
+/* Session card */
+.session-card{background:#1e2a1e;border:2px solid #4a7c4a;border-radius:20px;padding:24px;text-align:center;margin-bottom:24px}
+.session-project{font-size:13px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+.session-project-name{font-size:18px;font-weight:600;color:#e8e0d0;margin-bottom:8px}
+.session-task{background:#c9963a22;color:#c9963a;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px;display:inline-block;margin-bottom:20px}
+.timer-display{font-size:48px;font-weight:700;font-variant-numeric:tabular-nums;color:#e8e0d0;letter-spacing:2px;margin-bottom:24px;font-family:'Courier New',monospace}
+
+/* Buttons */
+.btn-start{width:160px;height:160px;border-radius:50%;border:none;background:linear-gradient(135deg,#4a7c4a,#2d5a2d);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 8px 32px #4a7c4a66;transition:transform .1s,box-shadow .1s;-webkit-user-select:none;user-select:none;letter-spacing:1px}
+.btn-start:active{transform:scale(0.95);box-shadow:0 4px 16px #4a7c4a44}
+.btn-stop{width:160px;height:160px;border-radius:50%;border:none;background:linear-gradient(135deg,#7c2a2a,#5a1a1a);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 8px 32px #7c2a2a66;transition:transform .1s,box-shadow .1s;-webkit-user-select:none;user-select:none;letter-spacing:1px}
+.btn-stop:active{transform:scale(0.95);box-shadow:0 4px 16px #7c2a2a44}
+.btn-secondary{background:#252525;border:1px solid #444;color:#e8e0d0;padding:14px 28px;border-radius:12px;font-size:15px;cursor:pointer;width:100%;margin-top:8px}
+.btn-secondary:active{background:#333}
+
+/* List items (projects, tasks) */
+.list-item{background:#252525;border:1px solid #333;border-radius:14px;padding:16px 18px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color .15s}
+.list-item:active{border-color:#c9963a;background:#2a2520}
+.list-item-main{flex:1}
+.list-item-title{font-size:15px;font-weight:500;color:#e8e0d0}
+.list-item-sub{font-size:12px;color:#888;margin-top:2px}
+.list-arrow{color:#555;font-size:18px}
+
+/* Task grid */
+.task-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.task-chip{background:#252525;border:2px solid #333;border-radius:12px;padding:14px 10px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;color:#e8e0d0;transition:border-color .15s,background .15s;-webkit-user-select:none;user-select:none;line-height:1.3}
+.task-chip:active,.task-chip.selected{border-color:#c9963a;background:#2a2520;color:#c9963a}
+.task-custom-row{display:flex;gap:10px;margin-bottom:16px}
+.task-input{flex:1;background:#252525;border:1px solid #444;border-radius:12px;padding:14px 16px;color:#e8e0d0;font-size:15px;outline:none}
+.task-input:focus{border-color:#c9963a}
+.btn-confirm{background:#c9963a;border:none;color:#fff;padding:14px 24px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;flex-shrink:0}
+.btn-confirm:active{background:#a87830}
+.btn-confirm-full{background:#c9963a;border:none;color:#fff;padding:16px;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;width:100%;margin-top:8px}
+.btn-confirm-full:active{background:#a87830}
+
+/* Search */
+.search-box{background:#252525;border:1px solid #444;border-radius:12px;padding:14px 16px;color:#e8e0d0;font-size:15px;outline:none;width:100%;margin-bottom:16px}
+.search-box:focus{border-color:#c9963a}
+
+/* History */
+.history-item{background:#252525;border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.history-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.history-project{font-size:14px;font-weight:500;color:#e8e0d0}
+.history-duration{font-size:16px;font-weight:600;color:#c9963a}
+.history-task{font-size:12px;color:#888;margin-bottom:4px}
+.history-meta{font-size:11px;color:#666}
+.history-date-group{font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:12px 0 6px;border-bottom:1px solid #2a2a2a;margin-bottom:8px}
+
+/* Empty state */
+.empty{text-align:center;color:#666;padding:40px 20px;font-size:14px}
+.empty-icon{font-size:40px;margin-bottom:12px}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#e8e0d0;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="screen active" id="screen-loading">
+  <div class="content centered">
+    <div class="spinner"></div>
+    <div style="color:#888;font-size:14px;margin-top:12px">Načítavanie...</div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen" id="screen-login">
+  <div class="header"><div class="header-title">Kto pracuje?</div></div>
+  <div class="content">
+    <div class="emp-grid" id="emp-grid"></div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div class="screen" id="screen-home">
+  <div class="header">
+    <div class="header-title">Sledovanie hodín</div>
+  </div>
+  <div class="content centered" id="home-content">
+    <!-- dynamic -->
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="showTab('home')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l1 14 9 1 9-1 1-14z" opacity=".2"/><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      Domov
+    </button>
+    <button class="nav-item" onclick="showTab('history')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+      História
+    </button>
+  </nav>
+</div>
+
+<!-- PROJECT PICKER -->
+<div class="screen" id="screen-project">
+  <div class="header">
+    <button class="back-btn" onclick="goBack()">‹</button>
+    <div class="header-title">Vybrať zákazku</div>
+  </div>
+  <div class="content">
+    <input class="search-box" id="project-search" placeholder="Hľadať zákazku..." oninput="filterProjects(this.value)">
+    <div id="project-list"></div>
+  </div>
+</div>
+
+<!-- TASK PICKER -->
+<div class="screen" id="screen-task">
+  <div class="header">
+    <button class="back-btn" onclick="goBack()">‹</button>
+    <div class="header-title">Vybrať činnosť</div>
+  </div>
+  <div class="content">
+    <div class="task-grid" id="task-grid"></div>
+    <div class="task-custom-row">
+      <input class="task-input" id="task-custom" placeholder="Iná činnosť...">
+      <button class="btn-confirm" onclick="startWithCustomTask()">Štart</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY TAB -->
+<div style="display:none" id="tab-history">
+  <div class="content" id="history-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUFZcdDc4M2ELVJE2XJwJNAIEIX7E5fU92PQ9QMOTvuUcct02sH187qNMPMfwFtwXxng/exec';
+
+let currentEmployee = null;
+let activeEntry = null;
+let projects = [];
+let tasks = [];
+let employees = [];
+let myEntries = [];
+let selectedProject = null;
+let selectedTask = null;
+let timerInterval = null;
+let timerStart = null;
+let screenHistory = [];
+
+// ── INIT ──────────────────────────────────────────────
+window.onload = async () => {
+  registerSW();
+  const saved = localStorage.getItem('pwa-employee');
+  if (saved) { try { currentEmployee = JSON.parse(saved); } catch(e){} }
+  try {
+    const [empRes, projRes, taskRes] = await Promise.all([
+      fetch(SCRIPT_URL + '?action=getEmployees').then(r=>r.json()),
+      fetch(SCRIPT_URL + '?action=getProjects').then(r=>r.json()),
+      fetch(SCRIPT_URL + '?action=getTasks').then(r=>r.json())
+    ]);
+    employees = (empRes.data || []).filter(e => e.id && e.name);
+    projects  = (projRes.data || []).filter(p => p.id && p.name && p.status !== 'Dokončený' && p.status !== 'Zrušený');
+    tasks     = (taskRes.data || []).filter(t => t.name);
+    syncMyEntries();
+  } catch(e) {
+    employees = JSON.parse(localStorage.getItem('pwa-employees') || '[]');
+    projects  = JSON.parse(localStorage.getItem('pwa-projects')  || '[]');
+    tasks     = JSON.parse(localStorage.getItem('pwa-tasks')     || '[]');
+  }
+  localStorage.setItem('pwa-employees', JSON.stringify(employees));
+  localStorage.setItem('pwa-projects',  JSON.stringify(projects));
+  localStorage.setItem('pwa-tasks',     JSON.stringify(tasks));
+
+  if (currentEmployee) { showScreen('home'); renderHome(); }
+  else { renderLogin(); showScreen('login'); }
+};
+
+async function syncMyEntries() {
+  if (!currentEmployee) return;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getTimeEntries').then(r=>r.json());
+    myEntries = (res.data || []).filter(e => e.employeeId === currentEmployee.id);
+    localStorage.setItem('pwa-entries-' + currentEmployee.id, JSON.stringify(myEntries));
+  } catch(e) {
+    myEntries = JSON.parse(localStorage.getItem('pwa-entries-' + (currentEmployee?.id||'')) || '[]');
+  }
+  // Restore active session
+  const sess = localStorage.getItem('pwa-active');
+  if (sess) {
+    try {
+      activeEntry = JSON.parse(sess);
+      const e = myEntries.find(x => x.id === activeEntry.id);
+      if (e && !e.endTime) { timerStart = new Date(activeEntry.startTime); startTick(); }
+      else { localStorage.removeItem('pwa-active'); activeEntry = null; }
+    } catch(e) { localStorage.removeItem('pwa-active'); }
+  }
+  renderHome();
+  renderHistory();
+}
+
+// ── SCREENS ───────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const s = document.getElementById('screen-' + name);
+  if (s) s.classList.add('active');
+}
+
+function navigateTo(name) {
+  screenHistory.push(document.querySelector('.screen.active')?.id);
+  showScreen(name);
+}
+
+function goBack() {
+  const prev = screenHistory.pop();
+  if (prev) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const s = document.getElementById(prev);
+    if (s) s.classList.add('active');
+  } else showScreen('home');
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const homeContent = document.getElementById('home-content');
+  const histTab = document.getElementById('tab-history');
+  if (tab === 'home') {
+    homeContent.style.display = '';
+    histTab.style.display = 'none';
+  } else {
+    homeContent.style.display = 'none';
+    histTab.style.display = '';
+    histTab.style.flex = '1';
+    histTab.style.overflow = 'hidden';
+    renderHistory();
+  }
+}
+
+// ── LOGIN ─────────────────────────────────────────────
+function renderLogin() {
+  document.getElementById('emp-grid').innerHTML = employees.length
+    ? employees.map(e => `
+        <div class="emp-card" onclick="login('${e.id}')">
+          <div class="emp-initials">${(e.initials || e.name.slice(0,2)).toUpperCase()}</div>
+          <div class="emp-name">${e.name}</div>
+        </div>`).join('')
+    : '<div class="empty" style="grid-column:span 2"><div class="empty-icon">👤</div>Žiadni zamestnanci</div>';
+}
+
+function login(empId) {
+  currentEmployee = employees.find(e => e.id === empId);
+  if (!currentEmployee) return;
+  localStorage.setItem('pwa-employee', JSON.stringify(currentEmployee));
+  myEntries = JSON.parse(localStorage.getItem('pwa-entries-' + empId) || '[]');
+  showScreen('home');
+  renderHome();
+  syncMyEntries();
+}
+
+function logout() {
+  if (activeEntry) { showToast('Najprv zastav časovač'); return; }
+  currentEmployee = null;
+  localStorage.removeItem('pwa-employee');
+  renderLogin();
+  showScreen('login');
+}
+
+// ── HOME ──────────────────────────────────────────────
+function renderHome() {
+  if (!currentEmployee) return;
+  const el = document.getElementById('home-content');
+  const badge = `<div class="user-badge" style="width:100%;max-width:340px">
+    <div class="user-badge-icon">${(currentEmployee.initials||currentEmployee.name.slice(0,2)).toUpperCase()}</div>
+    <div class="user-badge-name">${currentEmployee.name}</div>
+    <button class="logout-btn" onclick="logout()">Odhlásiť</button>
+  </div>`;
+
+  if (activeEntry) {
+    el.innerHTML = badge + `
+      <div class="session-card" style="width:100%;max-width:340px">
+        <div class="session-project">Aktívna zákazka</div>
+        <div class="session-project-name">${activeEntry.projectName}</div>
+        <div class="session-task">${activeEntry.task || 'Bez činnosti'}</div>
+        <div class="timer-display" id="timer-display">00:00:00</div>
+        <button class="btn-stop" onclick="stopTimer()">STOP</button>
+      </div>`;
+    updateTimerDisplay();
+  } else {
+    el.innerHTML = badge + `
+      <div style="color:#888;font-size:14px;margin-bottom:24px">Spusti meranie času</div>
+      <button class="btn-start" onclick="startFlow()">ŠTART</button>`;
+  }
+}
+
+// ── TIMER ─────────────────────────────────────────────
+function startFlow() {
+  if (projects.length === 0) { showToast('Žiadne aktívne zákazky'); return; }
+  selectedProject = null; selectedTask = null;
+  renderProjectList('');
+  document.getElementById('project-search').value = '';
+  navigateTo('project');
+}
+
+function renderProjectList(q) {
+  const list = q
+    ? projects.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) || (p.customer||'').toLowerCase().includes(q.toLowerCase()))
+    : projects;
+  document.getElementById('project-list').innerHTML = list.length
+    ? list.map(p => `
+        <div class="list-item" onclick="selectProject('${p.id}')">
+          <div class="list-item-main">
+            <div class="list-item-title">${p.name}</div>
+            <div class="list-item-sub">${p.customer || ''}</div>
+          </div>
+          <div class="list-arrow">›</div>
+        </div>`).join('')
+    : '<div class="empty"><div class="empty-icon">🔍</div>Nič sa nenašlo</div>';
+}
+
+function filterProjects(q) { renderProjectList(q); }
+
+function selectProject(id) {
+  selectedProject = projects.find(p => p.id === id);
+  renderTaskGrid();
+  document.getElementById('task-custom').value = '';
+  navigateTo('task');
+}
+
+function renderTaskGrid() {
+  const chips = tasks.map(t => `
+    <div class="task-chip" onclick="selectTaskChip(this,'${t.name.replace(/'/g,"\\'")}')">
+      ${t.name}
+    </div>`).join('');
+  document.getElementById('task-grid').innerHTML = chips || '<div style="color:#888;font-size:13px;grid-column:span 2;">Žiadne uložené činnosti</div>';
+}
+
+function selectTaskChip(el, name) {
+  document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTask = name;
+  document.getElementById('task-custom').value = '';
+  startTimerNow();
+}
+
+function startWithCustomTask() {
+  const val = document.getElementById('task-custom').value.trim();
+  if (!val) { showToast('Zadaj názov činnosti'); return; }
+  selectedTask = val;
+  startTimerNow();
+}
+
+async function startTimerNow() {
+  if (!selectedProject || !selectedTask) return;
+  const now = new Date();
+  activeEntry = {
+    id: 'TE' + Date.now(),
+    employeeId: currentEmployee.id,
+    employeeName: currentEmployee.name,
+    projectId: selectedProject.id,
+    projectName: selectedProject.name,
+    hourlyRate: parseFloat(selectedProject.hourlyRate || 0),
+    task: selectedTask,
+    startTime: now.toISOString(),
+    endTime: null,
+    durationMin: 0,
+    date: now.toISOString().split('T')[0],
+    laborCost: 0
+  };
+  localStorage.setItem('pwa-active', JSON.stringify(activeEntry));
+  timerStart = now;
+  startTick();
+  try {
+    await fetch(SCRIPT_URL, {method:'POST', body: JSON.stringify({action:'addTimeEntry', entry: activeEntry})});
+  } catch(e) {}
+  screenHistory = [];
+  showScreen('home');
+  renderHome();
+  showToast('Časovač spustený ✓');
+}
+
+async function stopTimer() {
+  if (!activeEntry) return;
+  clearInterval(timerInterval); timerInterval = null;
+  const now = new Date();
+  const durationMin = Math.round((now - timerStart) / 60000);
+  const rate = activeEntry.hourlyRate || 0;
+  activeEntry.endTime = now.toISOString();
+  activeEntry.durationMin = durationMin;
+  activeEntry.laborCost = (durationMin / 60) * rate;
+  localStorage.removeItem('pwa-active');
+  myEntries.push({...activeEntry});
+  localStorage.setItem('pwa-entries-' + currentEmployee.id, JSON.stringify(myEntries));
+  try {
+    await fetch(SCRIPT_URL, {method:'POST', body: JSON.stringify({action:'updateTimeEntry', entry: activeEntry})});
+  } catch(e) {}
+  showToast(`Zastavené — ${fmtDur(durationMin)}`);
+  activeEntry = null; timerStart = null;
+  renderHome();
+  renderHistory();
+}
+
+function startTick() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timer-display');
+  if (!el || !timerStart) return;
+  const s = Math.floor((Date.now() - timerStart) / 1000);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  el.textContent = `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function fmtDur(min) {
+  if (!min || min <= 0) return '0 min';
+  const h = Math.floor(min/60), m = min%60;
+  return h > 0 ? h+'h'+(m>0?' '+m+'min':'') : m+'min';
+}
+
+// ── HISTORY ───────────────────────────────────────────
+function renderHistory() {
+  const tab = document.getElementById('tab-history');
+  const container = document.getElementById('history-list');
+  if (!container) return;
+
+  const done = myEntries.filter(e => e.endTime).sort((a,b) => new Date(b.startTime)-new Date(a.startTime)).slice(0,50);
+  if (!done.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>Žiadne záznamy</div>';
+    return;
+  }
+  const groups = {};
+  done.forEach(e => {
+    const d = e.date || e.startTime?.split('T')[0] || '?';
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(e);
+  });
+  container.innerHTML = Object.entries(groups).map(([date, entries]) => `
+    <div class="history-date-group">${fmtDate(date)}</div>
+    ${entries.map(e => `
+      <div class="history-item">
+        <div class="history-header">
+          <div class="history-project">${e.projectName}</div>
+          <div class="history-duration">${fmtDur(parseInt(e.durationMin)||0)}</div>
+        </div>
+        <div class="history-task">${e.task || ''}</div>
+        <div class="history-meta">${fmtTime(e.startTime)} – ${fmtTime(e.endTime)}${e.laborCost>0?' · €'+parseFloat(e.laborCost).toFixed(2):''}</div>
+      </div>`).join('')}`).join('');
+}
+
+function fmtDate(d) {
+  if (!d || d === '?') return '—';
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleDateString('sk', {weekday:'long', day:'numeric', month:'long'});
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('sk', {hour:'2-digit', minute:'2-digit'});
+}
+
+// ── TOAST ─────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── SERVICE WORKER ────────────────────────────────────
+function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  const sw = `
+    const CACHE = 'hodiny-pwa-v2';
+    self.addEventListener('install', e => {
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(clients.claim());
+    });
+    self.addEventListener('fetch', e => {
+      if (e.request.url.includes('script.google.com')) return;
+      e.respondWith(
+        caches.open(CACHE).then(cache =>
+          fetch(e.request).then(res => { cache.put(e.request, res.clone()); return res; })
+          .catch(() => caches.match(e.request))
+        )
+      );
+    });`;
+  const blob = new Blob([sw], {type: 'text/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+}
+</script>
+</body>
+</html>
