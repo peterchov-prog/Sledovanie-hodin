@@ -491,7 +491,12 @@ function renderHistory() {
   }
   const groups = {};
   done.forEach(e => {
-    const d = e.date || e.startTime?.split('T')[0] || '?';
+    let d = e.date || e.startTime?.split('T')[0] || '?';
+    // Ak je dátum plný reťazec (z Google Sheets), vytiahni len YYYY-MM-DD
+    if (d && d.length > 10) {
+      const dt = new Date(d);
+      d = isNaN(dt.getTime()) ? '?' : dt.toISOString().split('T')[0];
+    }
     if (!groups[d]) groups[d] = [];
     groups[d].push(e);
   });
@@ -510,13 +515,16 @@ function renderHistory() {
 
 function fmtDate(d) {
   if (!d || d === '?') return '—';
-  const dt = new Date(d + 'T12:00:00');
+  const dt = /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + 'T12:00:00') : new Date(d);
+  if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString('sk', {weekday:'long', day:'numeric', month:'long'});
 }
 
 function fmtTime(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('sk', {hour:'2-digit', minute:'2-digit'});
+  const dt = new Date(iso);
+  if (isNaN(dt.getTime())) return '—';
+  return dt.toLocaleTimeString('sk', {hour:'2-digit', minute:'2-digit'});
 }
 
 // ── TOAST ─────────────────────────────────────────────
