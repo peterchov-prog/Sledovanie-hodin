@@ -184,7 +184,7 @@ html,body{height:100%;background:#1a1a1a;color:#e8e0d0;font-family:-apple-system
 <div class="toast" id="toast"></div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUFZcdDc4M2ELVJE2XJwJNAIEIX7E5fU92PQ9QMOTvuUcct02sH187qNMPMfwFtwXxng/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZxQcMg7SJP6rnZPGH61PtEvQqYeK_wMybiQLkNgPvri0ENiWK9aMN7PYdxsxZYg3tqA/exec';
 
 let currentEmployee = null;
 let activeEntry = null;
@@ -400,8 +400,18 @@ function startWithCustomTask() {
   startTimerNow();
 }
 
+async function saveTaskIfNew(taskName) {
+  if (!taskName) return;
+  if (tasks.find(t => t.name.toLowerCase() === taskName.toLowerCase())) return;
+  const newTask = { id: 'TK' + Date.now(), name: taskName };
+  tasks.push(newTask);
+  localStorage.setItem('pwa-tasks', JSON.stringify(tasks));
+  try { await fetch(SCRIPT_URL, {method:'POST', body: JSON.stringify({action:'addTask', task: newTask})}); } catch(e) {}
+}
+
 async function startTimerNow() {
   if (!selectedProject || !selectedTask) return;
+  await saveTaskIfNew(selectedTask);
   const now = new Date();
   activeEntry = {
     id: 'TE' + Date.now(),
