@@ -134,8 +134,11 @@ html,body{height:100%;background:#1a1a1a;color:#e8e0d0;font-family:-apple-system
   <div class="header">
     <div class="header-title">Sledovanie hodín</div>
   </div>
-  <div class="content centered" id="home-content">
+  <div class="content centered" id="home-content" style="flex:1;overflow-y:auto;">
     <!-- dynamic -->
+  </div>
+  <div id="tab-history" style="display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div id="history-list" style="padding:20px;"></div>
   </div>
   <nav class="bottom-nav">
     <button class="nav-item active" onclick="showTab('home')">
@@ -174,11 +177,6 @@ html,body{height:100%;background:#1a1a1a;color:#e8e0d0;font-family:-apple-system
       <button class="btn-confirm" onclick="startWithCustomTask()">Štart</button>
     </div>
   </div>
-</div>
-
-<!-- HISTORY TAB -->
-<div style="display:none" id="tab-history">
-  <div class="content" id="history-list"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -280,9 +278,7 @@ function showTab(tab) {
     histTab.style.display = 'none';
   } else {
     homeContent.style.display = 'none';
-    histTab.style.display = '';
-    histTab.style.flex = '1';
-    histTab.style.overflow = 'hidden';
+    histTab.style.display = 'block';
     renderHistory();
   }
 }
